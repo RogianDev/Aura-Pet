@@ -1,0 +1,57 @@
+# ===== Dependencias =====
+node_modules/
+jspm_packages/
+
+# ===== Builds =====
+dist/
+dist-electron/
+build/
+release/
+out/
+*.tsbuildinfo
+
+# ===== Electron =====
+*.exe
+*.dmg
+*.AppImage
+*.msi
+*.snap
+
+# ===== Variables de entorno (NUNCA subir claves de API) =====
+.env
+.env.*
+!.env.example
+
+# ===== Cache =====
+.vite/
+.cache/
+.npm/
+.eslintcache
+coverage/
+
+# ===== Tests =====
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# ===== Logs =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Sistema operativo / editores =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# ===== Archivos temporales =====
+*.tmp
+.temp/
+tmp/
