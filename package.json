@@ -1,0 +1,43 @@
+{
+  "name": "aurapet",
+  "version": "1.2.0",
+  "description": "Asistente flotante de escritorio para Windows con mascota SVG, fisicas de resortes y motor multi-proveedor de IA",
+  "private": true,
+  "main": "dist-electron/main/index.js",
+  "author": "RogianDev",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k -n main,renderer,electron -c blue,magenta,green \"npm:dev:main\" \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:main": "tsc -p tsconfig.main.json --watch --preserveWatchOutput",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on dist-electron/main/index.js http://localhost:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron .",
+    "build": "tsc -p tsconfig.main.json && vite build",
+    "start": "electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "framer-motion": "^11.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "cross-env": "^10.1.0",
+    "electron": "^44.5.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "wait-on": "^9.5.1"
+  }
+}
