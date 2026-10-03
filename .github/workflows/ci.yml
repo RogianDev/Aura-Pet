@@ -1,0 +1,49 @@
+name: CI
+
+# Se ejecuta en cada push y en cada PR hacia main.
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+
+# Cancela ejecuciones anteriores del mismo ref: ahorra minutos de runner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Typecheck, Test y Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Electron descarga un binario de ~100MB que CI no necesita para
+      # compilar ni testear. Saltarlo acelera el pipeline.
+      - name: Instalar dependencias
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Verificar tipos (Main + Renderer)
+        run: |
+          npx tsc -p tsconfig.main.json --noEmit
+          npx tsc -p tsconfig.json --noEmit
+
+      - name: Ejecutar tests
+        run: npm run test
+
+      - name: Compilar para produccion
+        run: npm run build
+
+      - name: Auditar vulnerabilidades
+        run: npm audit --audit-level=high
