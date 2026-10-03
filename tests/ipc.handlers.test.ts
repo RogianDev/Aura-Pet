@@ -10,7 +10,7 @@ import { IPC_CHANNELS } from '../src/shared/contracts';
 const registry = new Map<string, (...args: unknown[]) => unknown>();
 const sent = new Map<string, unknown>();
 
-const mockedApp = { getVersion: () => '1.2.0' };
+const mockedApp = { getVersion: () => '1.3.0' };
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -73,6 +73,6 @@ describe('IPC handlers', () => {
 
   it('APP_GET_VERSION devuelve la version de la app', async () => {
     const handler = registry.get(IPC_CHANNELS.APP_GET_VERSION);
-    expect(await handler?.()).toBe('1.2.0');
+    expect(await handler?.()).toBe('1.3.0');
   });
 });

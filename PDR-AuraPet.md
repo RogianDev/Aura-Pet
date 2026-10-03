@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Equipo | Control de código |
 | --- | --- | --- | --- |
-| 1.2.0 | Octubre 2026 | 2+ Desarrolladores | GitHub / Git-Flow |
+| 1.3.0 | Octubre 2026 | 2+ Desarrolladores | GitHub / Git-Flow |
 
 > **Fuente:** `Documento de Requisitos de Producto (PDR) - AuraPet.pdf` (5 páginas).
 > **Nota de conversión:** los bloques de código del PDF original (estructura de carpetas, diagrama de flujo IPC, comandos Git y cheat sheet) estaban truncados en el propio PDF por saltos de línea. Fueron reconstruidos de forma coherente con el contexto del documento y se marcan con `> [!NOTE]`.
@@ -211,6 +211,91 @@ git stash                     # Guardar cambios temporalmente
 git stash pop                 # Recuperarlos
 ```
 
+## 11. Protocolo de colaboración entre Developers (prevención de conflictos)
+
+> [!NOTE]
+> Sección añadida en la versión **1.3.0**. Complementa la sección 7 con el reparto de propiedad de archivos y el flujo de trabajo en paralelo de los 2 developers. La seccion 7 explica el flujo general; esta define **quien toca que** y **como evitar conflictos**.
+
+### 11.1 Reparto de propiedad por carpeta
+
+Cada developer es **dueno exclusivo** de su carpeta. El otro no modifica el codigo de esa zona sin avisar en el PR.
+
+| Ruta | Dueno | Contenido |
+| --- | --- | --- |
+| `src/main/` | **Dev A** | Ciclo de vida, `WindowManager`, IPC handlers, sockets, `ai-providers/`, `storage/`, `tray/` |
+| `src/preload/` | **Dev A** | Context bridge (`window.aurapetAPI`) |
+| `src/renderer/` | **Dev B** | Componentes React, SVG, stores Zustand, estilos |
+| `src/shared/contracts.ts` | **A y B (compartido)** | Ver 11.3 — archivo de mayor riesgo |
+| `tests/` | Quien crea el modulo | Test junto al codigo que verifica |
+| `package.json` / lockfile | **El que mergea primero** | Ver 11.2 |
+
+### 11.2 Reglas para evitar conflictos
+
+1. **Cada rama nace de `main`, nunca de otra feature branch.** Un PR debe contener solo el trabajo propio. Ramas apiladas (crear una rama sobre otra feature) estan prohibidas en trabajo en equipo: obligan al segundo developer a mergear primero para poder trabajar.
+
+2. **`package.json` y `package-lock.json` tienen un unico dueno por PR.** El primer developer que mergee dependencias nuevas avisa en su PR. El segundo sincroniza (`git pull` + `npm install`) antes de abrir el suyo y vuelve a comprobar que el build funciona. Editar el lockfile a la vez produce conflictos que Git no puede resolver por si solo.
+
+3. **Rebase antes de pedir revision.** Antes de abrir el PR, actualizar sobre el estado actual de `main`:
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   git push --force-with-lease
+   ```
+
+4. **Nunca usar `git push --force` a secas.** Solo `--force-with-lease`, y unicamente tras un rebase propio. Un `--force` sin mas puede destruir trabajo de otra persona.
+
+5. **Comunicar los archivos sensibles en el PR.** Si un PR toca `src/shared/contracts.ts`, `package.json` o `.github/workflows/`, dejarlo escrito en la descripcion para que el otro developer haga `git pull` antes de seguir.
+
+6. **Sincronizarse a diario.** Al empezar la jornada:
+   ```bash
+   git switch main
+   git pull
+   ```
+   Trabajar sobre un `main` obsoleto es la causa mas comun de conflictos sorpresa al final del sprint.
+
+### 11.3 El archivo de mayor riesgo: `src/shared/contracts.ts`
+
+Es el unico archivo que **ambos developers necesitan consumir**. Un cambio aqui rompe la compilacion del otro hasta que sincroniza.
+
+- **Cambios pequenos y frecuentes** son mejores que cambios grandes y raros.
+- **No reordenar** canales IPC ni renombrar tipos sin avisar: genera conflictos absurdos en archivos que en realidad no cambiaste de verdad.
+- Tras mergear un cambio en `contracts.ts`, el otro developer **debe** hacer `git pull && npm install` y ejecutar `npm run typecheck` antes de continuar.
+
+### 11.4 Flujo diario de cada developer
+
+```bash
+# 1. Sincronizar con el estado mas reciente del equipo
+git switch main
+git pull origin main
+
+# 2. Crear rama propia desde main (NUNCA desde otra feature)
+git switch -c feature/mi-tarea
+
+# 3. Trabajar y commitear con Conventional Commits
+git add .
+git commit -m "feat: descripcion clara del cambio"
+
+# 4. Rebase sobre main actualizado antes de pedir revision
+git fetch origin
+git rebase origin/main
+
+# 5. Publicar y abrir el PR
+git push -u origin feature/mi-tarea
+```
+
+### 11.5 Revision de un PR ajeno — que mirar
+
+| Situacion | Accion |
+| --- | --- |
+| El CI esta en rojo | NO mergear. El PR no fusiona mientras falle. |
+| El PR toca `package.json` | Revisar con lupa las dependencias anadidas. |
+| El PR toca `contracts.ts` | Avisar al autor de que rompe la compilacion local. |
+| El PR toca carpetas del otro developer | Pedir justificacion antes de aprobar. |
+| Todo verde y sin archivos sensibles | Aprobar y mergear. |
+
+**Principio general:** el CI demuestra que el codigo *funciona*, no que sea *correcto* para el resto del equipo. Ese ultimo juicio sigue siendo humano.
+
 ---
 
 *Documento original: AuraPet PDR — Documento Técnico, páginas 1 a 5.*
+*Secciones 11 y 11.1-11.5 añadidas en la versión 1.3.0 (Octubre 2026).*
