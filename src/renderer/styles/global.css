@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+/* ---- RF-01: ventana transparente ---- */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  /* La app no debe ser seleccionable ni mostrar contorno al hacer click. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* ---- RF-01: zona de arrastre de la ventana ---- */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+/* Todo lo que no sea explicitamente arrastrable debe permanecer clicable. */
+.no-drag {
+  -webkit-app-region: no-drag;
+}
