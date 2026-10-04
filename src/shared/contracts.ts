@@ -14,6 +14,13 @@ export const IPC_CHANNELS = {
   SETTINGS_GET_ALL: 'settings:get-all',
   SETTINGS_UPDATE: 'settings:update',
   APP_GET_VERSION: 'app:get-version',
+  /** Sprint 3: que proveedores de IA hay y cuales estan configurados. */
+  AI_LIST_PROVIDERS: 'ai:list-providers',
+  /** Sprint 3: guarda una clave de API cifrada. Nunca se devuelve su valor. */
+  AI_SET_API_KEY: 'ai:set-api-key',
+  AI_DELETE_API_KEY: 'ai:delete-api-key',
+  /** Sprint 3: si el cifrado del sistema esta disponible. */
+  AI_SECURE_STORAGE_AVAILABLE: 'ai:secure-storage-available',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -83,6 +90,16 @@ export interface Settings {
 }
 
 /** API expuesta en el renderer via contextBridge (RNF-02). */
+/** Informacion de un proveedor expuesta al renderer (Sprint 3). */
+export interface ProviderInfo {
+  id: string;
+  label: string;
+  /** Si el usuario ya guardo una clave para este proveedor. */
+  configured: boolean;
+  /** Si es de pago: la UI debe avisarlo antes de pedir la clave. */
+  requiresApiKey: boolean;
+}
+
 export interface AuraPetAPI {
   pet: {
     getState(): Promise<PetState>;
@@ -96,6 +113,20 @@ export interface AuraPetAPI {
   settings: {
     getAll(): Promise<Settings>;
     update(partial: Partial<Settings>): Promise<Settings>;
+  };
+  /**
+   * Sprint 3 — Configuracion de IA.
+   *
+   * El renderer NUNCA recibe el valor de una clave: solo puede guardarla,
+   * borrarla o preguntar si existe. Es la garantia de que una clave no acaba
+   * en la UI ni en un log.
+   */
+  ai: {
+    listProviders(): Promise<ProviderInfo[]>;
+    setApiKey(provider: string, key: string): Promise<ProviderInfo[]>;
+    deleteApiKey(provider: string): Promise<ProviderInfo[]>;
+    /** Indica si el cifrado del sistema esta disponible. */
+    isSecureStorageAvailable(): Promise<boolean>;
   };
   app: {
     getVersion(): Promise<string>;

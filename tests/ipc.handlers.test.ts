@@ -1,10 +1,17 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { IPC_CHANNELS } from '../src/shared/contracts';
 
 /**
  * Test de los handlers IPC (matriz de calidad, seccion 5 del PDR).
  * Verifica el contrato Main <-> Preload sin levantar Electron.
  */
+
+/** Directorio temporal para el almacenamiento de claves. */
+const tempDir = mkdtempSync(join(tmpdir(), 'aurapet-ipc-'));
+afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
 
 // Registro en memoria de los handlers registrados por registerIpcHandlers.
 const registry = new Map<string, (...args: unknown[]) => unknown>();
@@ -13,7 +20,12 @@ const sent = new Map<string, unknown>();
 /** Mensajes push enviados de Main -> Renderer (RF-05). */
 const pushed: Array<{ channel: string; payload: unknown }> = [];
 
-const mockedApp = { getVersion: () => '1.3.0' };
+const mockedApp = {
+  getVersion: () => '1.3.0',
+  // SecureStore usa app.getPath('userData'). Sin esto caeria en el APPDATA
+  // real y los tests escribirian fuera del directorio temporal.
+  getPath: () => tempDir,
+};
 
 /**
  * WindowManager simulado: captura los pushes que Main envia al renderer.
@@ -37,10 +49,82 @@ vi.mock('electron', () => ({
     },
   },
   app: mockedApp,
+  // Sprint 3: SecureStore lo usa para cifrar las claves de IA.
+  safeStorage: {
+    isEncryptionAvailable: () => true,
+    encryptString: (t: string) => Buffer.from(t, 'utf8').toString('base64'),
+    decryptString: (b: Buffer) => Buffer.from(b.toString('utf8'), 'base64').toString('utf8'),
+  },
 }));
 
 const { registerIpcHandlers: registerInitial } = await import('../src/main/ipc/handlers');
 void registerInitial;
+
+describe('handlers de IA (Sprint 3)', () => {
+  beforeEach(async () => {
+    registry.clear();
+    sent.clear();
+    pushed.length = 0;
+    vi.resetModules();
+    const mod = await import('../src/main/ipc/handlers');
+    mod.registerIpcHandlers(windowManagerStub);
+  });
+
+  it('lista los proveedores de nube con su estado', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_LIST_PROVIDERS);
+    const providers = (await handler?.()) as Array<{ id: string; configured: boolean }>;
+
+    expect(providers.map((p) => p.id)).toEqual(['openai', 'anthropic']);
+    expect(providers.every((p) => p.configured === false)).toBe(true);
+  });
+
+  it('marca requiresApiKey solo en los de nube', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_LIST_PROVIDERS);
+    const providers = (await handler?.()) as Array<{ id: string; requiresApiKey: boolean }>;
+
+    expect(providers.find((p) => p.id === 'openai')?.requiresApiKey).toBe(true);
+  });
+
+  it('guarda una clave y refleja configured sin devolverla', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_SET_API_KEY);
+    const result = (await handler?.({}, 'openai', 'sk-secreta')) as Array<{
+      id: string;
+      configured: boolean;
+    }>;
+
+    expect(result.find((p) => p.id === 'openai')?.configured).toBe(true);
+
+    // La clave no debe aparecer en NINGUN sitio de la respuesta.
+    expect(JSON.stringify(result)).not.toContain('sk-secreta');
+  });
+
+  it('rechaza un proveedor desconocido', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_SET_API_KEY);
+    // El handler lanza de forma sincrona, asi que se envuelve en una funcion
+    // async para poder usar rejects.
+    await expect(async () => handler?.({}, 'inventado', 'sk-x')).rejects.toThrow(/desconocido/i);
+  });
+
+  it('rechaza una clave vacia', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_SET_API_KEY);
+    await expect(async () => handler?.({}, 'openai', '   ')).rejects.toThrow(/vacia/i);
+  });
+
+  it('borrar una clave devuelve el estado actualizado', async () => {
+    const set = registry.get(IPC_CHANNELS.AI_SET_API_KEY);
+    const del = registry.get(IPC_CHANNELS.AI_DELETE_API_KEY);
+
+    await set?.({}, 'openai', 'sk-x');
+    const result = (await del?.({}, 'openai')) as Array<{ id: string; configured: boolean }>;
+
+    expect(result.find((p) => p.id === 'openai')?.configured).toBe(false);
+  });
+
+  it('informa de si el cifrado esta disponible', async () => {
+    const handler = registry.get(IPC_CHANNELS.AI_SECURE_STORAGE_AVAILABLE);
+    expect(await handler?.()).toBe(true);
+  });
+});
 
 describe('IPC handlers', () => {
   beforeEach(async () => {

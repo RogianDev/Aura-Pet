@@ -1,6 +1,9 @@
 import { ipcMain, app } from 'electron';
-import { IPC_CHANNELS, type PetState, type Settings } from '../../shared/contracts';
+import { IPC_CHANNELS, type PetState, type ProviderInfo, type Settings } from '../../shared/contracts';
 import type { WindowManager } from '../window/WindowManager';
+import { SecureStore } from '../storage/SecureStore';
+import { availableProviders, isProviderConfigured } from '../ai-providers';
+import type { AIProviderId } from '../ai-providers/AIProvider';
 
 /**
  * Handlers IPC — Capa de dominio / casos de uso (seccion 4.2 del PDR).
@@ -15,12 +18,43 @@ const petState: PetState = {
   cursor: { x: 0, y: 0 },
 };
 
+/** Estado de ajustes. Las claves de IA NO viven aqui: van cifradas en SecureStore. */
 const settings: Settings = {
   provider: 'ollama',
   ollamaBaseUrl: 'http://localhost:11434',
   ollamaModel: 'llama3.1',
   volume: 0.7,
 };
+
+/** Almacén cifrado de credenciales. */
+const secureStore = new SecureStore();
+
+/** Etiquetas legibles para el panel de ajustes. */
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI (nube, requiere clave)',
+  anthropic: 'Anthropic (nube, requiere clave)',
+  ollama: 'Ollama (local, sin clave)',
+  lmstudio: 'LM Studio (local, sin clave)',
+};
+
+/**
+ * Lista los proveedores y si estan configurados.
+ *
+ * Devuelve solo el booleano `configured`: el valor de la clave nunca sale de
+ * Main. Si se devolviera, la clave acabaria en el renderer y en cualquier log.
+ */
+function listProviders(): ProviderInfo[] {
+  return availableProviders().map((id) => ({
+    id,
+    label: PROVIDER_LABELS[id] ?? id,
+    configured: isProviderConfigured(id, secureStore),
+    requiresApiKey: id === 'openai' || id === 'anthropic',
+  }));
+}
+
+function isKnownProvider(id: string): id is AIProviderId {
+  return availableProviders().includes(id as AIProviderId);
+}
 
 /**
  * Ventana activa usada para notificar cambios de animo al renderer.
@@ -83,5 +117,43 @@ export function registerIpcHandlers(windowManager: WindowManager): void {
   // ---- App ----
   ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, (): string => {
     return app.getVersion();
+  });
+
+  // ---- IA (Sprint 3) ----
+  // Ninguno de estos handlers devuelve el valor de una clave: solo si existe.
+  ipcMain.handle(IPC_CHANNELS.AI_LIST_PROVIDERS, (): ProviderInfo[] => {
+    return listProviders();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.AI_SET_API_KEY,
+    (_event, provider: string, key: string): ProviderInfo[] => {
+      if (!isKnownProvider(provider)) {
+        throw new Error(`Proveedor desconocido: ${provider}`);
+      }
+      const value = String(key ?? '').trim();
+      if (value.length === 0) {
+        throw new Error('La clave no puede estar vacia.');
+      }
+      if (!SecureStore.isAvailable()) {
+        throw new Error(
+          'El cifrado del sistema no esta disponible: no se guardan claves en claro.',
+        );
+      }
+      secureStore.set(`apiKey:${provider}`, value);
+      return listProviders();
+    },
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AI_DELETE_API_KEY, (_event, provider: string): ProviderInfo[] => {
+    if (!isKnownProvider(provider)) {
+      throw new Error(`Proveedor desconocido: ${provider}`);
+    }
+    secureStore.delete(`apiKey:${provider}`);
+    return listProviders();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AI_SECURE_STORAGE_AVAILABLE, (): boolean => {
+    return SecureStore.isAvailable();
   });
 }
