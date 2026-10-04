@@ -1,7 +1,7 @@
 import type { PetMood } from '@shared/contracts';
 
 /** Recorrido maximo de la pupila en unidades del viewBox, con `pupilTravel` 1. */
-export const PUPIL_TRAVEL = 6;
+export const PUPIL_TRAVEL = 3;
 
 /** Escala vertical de los parpados con los ojos cerrados (0 = cerrado, 1 = abierto). */
 export const EYES_CLOSED_SCALE = 0.08;
