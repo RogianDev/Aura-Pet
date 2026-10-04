@@ -2,7 +2,8 @@ import { motion } from 'framer-motion';
 import { MOOD_CONFIG } from '../../config/moodConfig';
 import { useBlink } from '../../hooks/useBlink';
 import { usePetPhysics } from '../../hooks/usePetPhysics';
-import { usePetMoodStore } from '../../stores/petMoodStore';
+import { usePetMoodStore, selectIsAlert } from '../../stores/petMoodStore';
+import { antennaAlertPulse, antennaRestTransition, petVariants } from './petVariants';
 
 /**
  * Anclaje del `scaleY` de los parpados, en fraccion de la caja del grupo de
@@ -24,6 +25,7 @@ const EYE_ORIGIN_Y = 0.45;
  */
 export function PetAvatar() {
   const mood = usePetMoodStore((s) => s.mood);
+  const isAlert = usePetMoodStore(selectIsAlert);
 
   // Parpadeo aleatorio; publica el resultado en petMoodStore.isBlinking.
   useBlink();
@@ -35,15 +37,20 @@ export function PetAvatar() {
 
   return (
     <div className="flex h-full w-full items-center justify-center drag-region">
+      {/*
+        `petVariants[mood]` cambia de objeto al cambiar de animo, asi que
+        Framer Motion reinicia los keyframes de la nueva variante.
+      */}
       <motion.svg
         viewBox="0 0 120 120"
         width="180"
         height="180"
         role="img"
         aria-label={label}
+        variants={petVariants[mood]}
+        initial={false}
+        animate="animate"
         whileHover={{ scale: 1.03 }}
-        animate={{ y: [0, -3, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
         {/* Cuerpo. El color interpola al cambiar de animo. */}
         <motion.ellipse
@@ -81,8 +88,17 @@ export function PetAvatar() {
           strokeLinecap="round"
         />
 
-        {/* Antena indicadora de estado de conexion */}
-        <circle cx="60" cy="24" r="4" fill={antenna.color} opacity={antenna.opacity} />
+        {/* Antena indicadora de estado. Late mientras hay una alerta. */}
+        <motion.circle
+          cx="60"
+          cy="24"
+          r="4"
+          fill={antenna.color}
+          animate={{
+            opacity: isAlert ? antennaAlertPulse.opacity : antenna.opacity,
+          }}
+          transition={isAlert ? antennaAlertPulse.transition : antennaRestTransition}
+        />
       </motion.svg>
     </div>
   );
