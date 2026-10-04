@@ -12,6 +12,13 @@ const api: AuraPetAPI = {
   pet: {
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.PET_GET_STATE),
     setMood: (mood: PetMood) => ipcRenderer.send(IPC_CHANNELS.PET_SET_MOOD, mood),
+    onMoodChange: (callback: (mood: PetMood) => void) => {
+      // Envolvente: el renderer nunca recibe el objeto IpcRendererEvent,
+      // que expone `sender` y podria usarse para Saltarse el firewall (§4.1).
+      const listener = (_event: unknown, mood: PetMood): void => callback(mood);
+      ipcRenderer.on(IPC_CHANNELS.PET_MOOD_CHANGED, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.PET_MOOD_CHANGED, listener);
+    },
   },
   settings: {
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_ALL),

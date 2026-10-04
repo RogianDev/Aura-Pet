@@ -17,7 +17,16 @@ if (!gotTheLock) {
 
   void app.whenReady().then(async () => {
     registerIpcHandlers(windowManager);
-    windowManager.createMainWindow();
+    const mainWindow = windowManager.createMainWindow();
+
+    // Reenvia la consola del renderer a la terminal. Sin esto, los errores del
+    // renderer son invisibles durante el desarrollo y se manifiestan como
+    // "no funciona" sin ninguna pista.
+    mainWindow.webContents.on('console-message', (_event, level, message) => {
+      const marcas = ['debug', 'info', 'warn', 'error'];
+      const etiqueta = marcas[level] ?? 'log';
+      console.log(`[renderer:${etiqueta}] ${message}`);
+    });
 
     // RF-05: los eventos de la CLI actualizan el animo de la mascota.
     cliEvents.on('mood', (mood: 'idle' | 'happy' | 'curious' | 'alert') => {

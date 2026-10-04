@@ -9,6 +9,8 @@
 export const IPC_CHANNELS = {
   PET_GET_STATE: 'pet:get-state',
   PET_SET_MOOD: 'pet:set-mood',
+  /** Push de Main -> Renderer: el animo cambio (eventos de CLI). */
+  PET_MOOD_CHANGED: 'pet:mood-changed',
   SETTINGS_GET_ALL: 'settings:get-all',
   SETTINGS_UPDATE: 'settings:update',
   APP_GET_VERSION: 'app:get-version',
@@ -85,6 +87,11 @@ export interface AuraPetAPI {
   pet: {
     getState(): Promise<PetState>;
     setMood(mood: PetMood): void;
+    /**
+     * Suscribe el renderer a los cambios de animo enviados por Main
+     * (eventos de CLI, RF-05). Devuelve una funcion para cancelar.
+     */
+    onMoodChange(callback: (mood: PetMood) => void): () => void;
   };
   settings: {
     getAll(): Promise<Settings>;

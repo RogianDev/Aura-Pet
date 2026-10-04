@@ -23,18 +23,38 @@ const settings: Settings = {
 };
 
 /**
+ * Ventana activa usada para notificar cambios de animo al renderer.
+ * Se registra al crear la ventana para que applyPetMood pueda enviar el push.
+ */
+let activeWindow: WindowManager | null = null;
+
+/** Registra el WindowManager que gestionara las notificaciones push. */
+export function setActiveWindowManager(manager: WindowManager): void {
+  activeWindow = manager;
+}
+
+/**
  * Actualiza el animo de la mascota desde el proceso Main.
  * Lo invoca el servidor de eventos de la CLI (RF-05) para que los cambios
  * de estado lleguen al renderer sin que este tenga que escuchar el WebSocket.
+ *
+ * Ademas de guardar el estado, ENVIA el cambio a la ventana: sin esta
+ * notificacion el renderer no se enteraria hasta que se recargara.
  */
 export function applyPetMood(mood: PetState['mood']): void {
   const valid: PetState['mood'][] = ['idle', 'happy', 'curious', 'sleepy', 'alert'];
-  if (valid.includes(mood)) {
-    petState.mood = mood;
+  if (!valid.includes(mood)) return;
+
+  petState.mood = mood;
+
+  const window = activeWindow?.getMainWindow();
+  if (window && !window.isDestroyed()) {
+    window.webContents.send(IPC_CHANNELS.PET_MOOD_CHANGED, mood);
   }
 }
 
-export function registerIpcHandlers(_windowManager: WindowManager): void {
+export function registerIpcHandlers(windowManager: WindowManager): void {
+  setActiveWindowManager(windowManager);
   // ---- Mascota (RF-02) ----
   ipcMain.handle(IPC_CHANNELS.PET_GET_STATE, (): PetState => {
     return { ...petState, cursor: { ...petState.cursor } };
