@@ -1,9 +1,11 @@
 import { app } from 'electron';
 import { WindowManager } from './window/WindowManager';
+import { TrayManager } from './tray/TrayManager';
 import { registerIpcHandlers, applyPetMood } from './ipc/handlers';
 import { CliEventsServer } from './sockets/WebSocketServer';
 
 const windowManager = new WindowManager();
+const trayManager = new TrayManager();
 const cliEvents = new CliEventsServer();
 
 // RNF-02: una sola instancia. El segundo foco se dirige a la ventana existente.
@@ -28,6 +30,11 @@ if (!gotTheLock) {
       console.log(`[renderer:${etiqueta}] ${message}`);
     });
 
+    // RF-04: la bandeja es el punto de retorno de la app. Closing la ventana
+    // solo la oculta, asi que sin bandeja el usuario se quedaria sin forma
+    // de volver a abrirla.
+    trayManager.create(windowManager);
+
     // RF-05: los eventos de la CLI actualizan el animo de la mascota.
     cliEvents.on('mood', (mood: 'idle' | 'happy' | 'curious' | 'alert') => {
       applyPetMood(mood);
@@ -51,13 +58,14 @@ if (!gotTheLock) {
   });
 
   app.on('before-quit', () => {
+    trayManager.destroy();
     void cliEvents.stop();
   });
 }
 
+// RF-04: en Windows la app sigue viva en la bandeja. No se llama a quit()
+// porque la ventana se oculta en lugar de cerrarse; cerrarla no debe
+// terminar el proceso. En macOS el comportamiento por defecto ya es ese.
 app.on('window-all-closed', () => {
-  // En Windows la app continua viva en la bandeja del sistema (RF-04).
-  if (process.platform !== 'darwin') {
-    windowManager.show();
-  }
+  // Sin accion intencionada: la bandeja mantiene la app residente.
 });

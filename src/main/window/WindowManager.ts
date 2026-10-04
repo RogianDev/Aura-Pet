@@ -94,6 +94,15 @@ export class WindowManager {
 
   private shouldKeepInTray = true;
 
+  /**
+   * Desactiva el ocultado al cerrar (usado por "Salir" en la bandeja, RF-04).
+   * Sin esto, la accion "Salir" no cerraria nada: el handler de 'close'
+   * interceptaria el cierre y volveria a esconder la ventana.
+   */
+  public setKeepInTray(keep: boolean): void {
+    this.shouldKeepInTray = keep;
+  }
+
   public getMainWindow(): BrowserWindow | null {
     return this.mainWindow;
   }
