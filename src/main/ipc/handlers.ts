@@ -22,6 +22,18 @@ const settings: Settings = {
   volume: 0.7,
 };
 
+/**
+ * Actualiza el animo de la mascota desde el proceso Main.
+ * Lo invoca el servidor de eventos de la CLI (RF-05) para que los cambios
+ * de estado lleguen al renderer sin que este tenga que escuchar el WebSocket.
+ */
+export function applyPetMood(mood: PetState['mood']): void {
+  const valid: PetState['mood'][] = ['idle', 'happy', 'curious', 'sleepy', 'alert'];
+  if (valid.includes(mood)) {
+    petState.mood = mood;
+  }
+}
+
 export function registerIpcHandlers(_windowManager: WindowManager): void {
   // ---- Mascota (RF-02) ----
   ipcMain.handle(IPC_CHANNELS.PET_GET_STATE, (): PetState => {
