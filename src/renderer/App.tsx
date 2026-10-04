@@ -28,6 +28,19 @@ export function App() {
     void window.aurapetAPI.pet.getState().then((state) => setMood(state.mood));
   }, [setMood]);
 
+  /**
+   * Recepcion de cambios de animo enviados por Main.
+   *
+   * Sin esta suscripcion el renderer solo sabria el animo al arrancar:
+   * los eventos de la CLI (RF-05) se producirian en Main pero nunca llegarian
+   * a la pantalla. Se cancela al desmontar para no acumular listeners.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.aurapetAPI) return;
+    const unsubscribe = window.aurapetAPI.pet.onMoodChange((mood) => setMood(mood));
+    return unsubscribe;
+  }, [setMood]);
+
   return (
     <main className="flex h-full w-full flex-col">
       <PetAvatar />

@@ -44,11 +44,21 @@ export class WindowManager {
       alwaysOnTop: true,
       fullscreenable: false,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
+        // OJO: __dirname en ejecucion es dist-electron/main/window, por lo que
+        // el preload (dist-electron/preload) queda DOS niveles arriba. Con un
+        // solo "../" la ruta resuelva a dist-electron/main/preload/index.js,
+        // que no existe, y el preload falla en silencio dejando
+        // window.aurapetAPI sin definir (seccion 4.1 del PDR).
+        preload: join(__dirname, '../../preload/index.js'),
         // RNF-02: aislamiento de contexto obligatorio.
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        // sandbox: false porque el preload importa '../shared/contracts' y los
+        // preloads en sandbox no pueden usar require de ficheros relativos.
+        // El aislamiento que exige el PDR (contextIsolation) sigue activo, y el
+        // renderer sigue sin acceso a Node ni al sistema de archivos: el preload
+        // es la unica frontera expuesta (seccion 4.1).
+        sandbox: false,
       },
     });
 
@@ -63,7 +73,8 @@ export class WindowManager {
       // En desarrollo el renderer lo sirve el dev server de Vite.
       this.mainWindow.loadURL(DEV_SERVER_URL);
     } else {
-      this.mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+      // Misma regla que el preload: dist-electron/renderer queda dos niveles arriba.
+      this.mainWindow.loadFile(join(__dirname, '../../renderer/index.html'));
     }
 
     // Cerrar solo oculta (la app vive en la bandeja del sistema, RF-04).
@@ -82,6 +93,15 @@ export class WindowManager {
   }
 
   private shouldKeepInTray = true;
+
+  /**
+   * Desactiva el ocultado al cerrar (usado por "Salir" en la bandeja, RF-04).
+   * Sin esto, la accion "Salir" no cerraria nada: el handler de 'close'
+   * interceptaria el cierre y volveria a esconder la ventana.
+   */
+  public setKeepInTray(keep: boolean): void {
+    this.shouldKeepInTray = keep;
+  }
 
   public getMainWindow(): BrowserWindow | null {
     return this.mainWindow;

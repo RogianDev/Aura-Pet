@@ -10,7 +10,24 @@ import { IPC_CHANNELS } from '../src/shared/contracts';
 const registry = new Map<string, (...args: unknown[]) => unknown>();
 const sent = new Map<string, unknown>();
 
+/** Mensajes push enviados de Main -> Renderer (RF-05). */
+const pushed: Array<{ channel: string; payload: unknown }> = [];
+
 const mockedApp = { getVersion: () => '1.3.0' };
+
+/**
+ * WindowManager simulado: captura los pushes que Main envia al renderer.
+ * Sin esto, applyPetMood mutaria el estado pero nadie lo recibiria, que fue
+ * exactamente el fallo que hizo que la funcionase visiblemente.
+ */
+const fakeWindow = {
+  isDestroyed: () => false,
+  webContents: {
+    send: (channel: string, payload: unknown) => pushed.push({ channel, payload }),
+  },
+};
+
+const windowManagerStub = { getMainWindow: () => fakeWindow } as never;
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -25,12 +42,11 @@ vi.mock('electron', () => ({
 const { registerIpcHandlers: registerInitial } = await import('../src/main/ipc/handlers');
 void registerInitial;
 
-const windowManagerStub = {} as never;
-
 describe('IPC handlers', () => {
   beforeEach(async () => {
     registry.clear();
     sent.clear();
+    pushed.length = 0;
     // El estado de la mascota vive en el modulo: hay que recargarlo
     // para que cada test parta del estado inicial.
     vi.resetModules();
@@ -40,8 +56,30 @@ describe('IPC handlers', () => {
 
   it('registra todos los canales definidos en el contrato', () => {
     for (const channel of Object.values(IPC_CHANNELS)) {
+      // PET_MOOD_CHANGED es un canal de push: lo emite Main, no lo registra
+      // el renderer, asi que no aparece en registry ni en sent.
+      if (channel === IPC_CHANNELS.PET_MOOD_CHANGED) continue;
       expect(registry.has(channel) || sent.has(channel)).toBe(true);
     }
+  });
+
+  it('applyPetMood notifica al renderer con PET_MOOD_CHANGED', async () => {
+    const { applyPetMood } = await import('../src/main/ipc/handlers');
+    applyPetMood('alert');
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.channel).toBe(IPC_CHANNELS.PET_MOOD_CHANGED);
+    expect(pushed[0]?.payload).toBe('alert');
+
+    // Y el estado tambien queda actualizado para getState().
+    const handler = registry.get(IPC_CHANNELS.PET_GET_STATE);
+    expect(await handler?.()).toMatchObject({ mood: 'alert' });
+  });
+
+  it('applyPetMood ignora animos invalidos y no notifica', async () => {
+    const { applyPetMood } = await import('../src/main/ipc/handlers');
+    applyPetMood('no-es-un-animo' as never);
+    expect(pushed).toHaveLength(0);
   });
 
   it('PET_GET_STATE devuelve el estado inicial en idle', async () => {

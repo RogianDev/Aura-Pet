@@ -9,6 +9,8 @@
 export const IPC_CHANNELS = {
   PET_GET_STATE: 'pet:get-state',
   PET_SET_MOOD: 'pet:set-mood',
+  /** Push de Main -> Renderer: el animo cambio (eventos de CLI). */
+  PET_MOOD_CHANGED: 'pet:mood-changed',
   SETTINGS_GET_ALL: 'settings:get-all',
   SETTINGS_UPDATE: 'settings:update',
   APP_GET_VERSION: 'app:get-version',
@@ -25,6 +27,52 @@ export interface PetState {
   cursor: { x: number; y: number };
 }
 
+/**
+ * Eventos de CLI recibidos por el servidor WebSocket (RF-05).
+ *
+ * Este bloque es ADITIVO: no modifica ningun tipo existente, de modo que el
+ * trabajo de Dev B en src/renderer/ sigue siendo compatible (seccion 11.3 del PDR).
+ */
+
+/** Tipos de evento aceptados por el servidor. Lista blanca (diseno aprobado). */
+export const CLI_EVENT_TYPES = ['cli.command.started', 'cli.command.finished'] as const;
+
+export type CliEventType = (typeof CLI_EVENT_TYPES)[number];
+
+/** Payload de `cli.command.started`. */
+export interface CliCommandStartedData {
+  /** Comando que la CLI va a ejecutar. No debe incluir secretos. */
+  command: string;
+}
+
+/** Payload de `cli.command.finished`. */
+export interface CliCommandFinishedData {
+  command: string;
+  /** Codigo de salida: 0 = correcto, distinto de 0 = fallo. */
+  exitCode: number;
+}
+
+/** Envelope comun a todos los eventos de CLI. */
+export interface CliEvent<T extends CliEventType = CliEventType> {
+  type: T;
+  /** ISO 8601. Opcional: si falta, el servidor lo completa. */
+  timestamp?: string;
+  data: T extends 'cli.command.started'
+    ? CliCommandStartedData
+    : T extends 'cli.command.finished'
+      ? CliCommandFinishedData
+      : never;
+}
+
+/** Tamano maximo de un mensaje WebSocket (64 KB). */
+export const CLI_EVENT_MAX_BYTES = 64 * 1024;
+
+/** Puerto por defecto del servidor local de la CLI. */
+export const CLI_EVENTS_PORT = 9001;
+
+/** Timeout de inactividad antes de cerrar una conexion zombi (ms). */
+export const CLI_EVENTS_IDLE_TIMEOUT_MS = 30_000;
+
 export interface Settings {
   /** Proveedor de IA activo. */
   provider: 'openai' | 'anthropic' | 'ollama' | 'lmstudio';
@@ -39,6 +87,11 @@ export interface AuraPetAPI {
   pet: {
     getState(): Promise<PetState>;
     setMood(mood: PetMood): void;
+    /**
+     * Suscribe el renderer a los cambios de animo enviados por Main
+     * (eventos de CLI, RF-05). Devuelve una funcion para cancelar.
+     */
+    onMoodChange(callback: (mood: PetMood) => void): () => void;
   };
   settings: {
     getAll(): Promise<Settings>;
