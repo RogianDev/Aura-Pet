@@ -1,1 +1,0 @@
-**Rama:** `feature/dev-a-sprint3-ai-seguridad` · **Complemento:** `docs/SPRINT-2-DEV-A.md`
