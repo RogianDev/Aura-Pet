@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Equipo | Control de código |
 | --- | --- | --- | --- |
-| 1.3.0 | Octubre 2026 | 2+ Desarrolladores | GitHub / Git-Flow |
+| 1.4.0 | Octubre 2026 | 2+ Desarrolladores | GitHub / Git-Flow |
 
 > **Fuente:** `Documento de Requisitos de Producto (PDR) - AuraPet.pdf` (5 páginas).
 > **Nota de conversión:** los bloques de código del PDF original (estructura de carpetas, diagrama de flujo IPC, comandos Git y cheat sheet) estaban truncados en el propio PDF por saltos de línea. Fueron reconstruidos de forma coherente con el contexto del documento y se marcan con `> [!NOTE]`.
@@ -12,6 +12,44 @@
 ## 1. Visión general del producto
 
 AuraPet es un asistente flotante de escritorio para Windows que combina un compañero interactivo SVG con físicas de resortes, automatización de terminal, panel de control desplegable y motor multi-proveedor de Inteligencia Artificial (Nube y Local Ollama).
+
+### 1.1 Propósito del producto (v1.4.0)
+
+**AuraPet es un asistente de uso diario que ayuda con tareas cotidianas, automatiza el trabajo repetitivo y guarda el contexto de lo que estás haciendo para actuar como soporte.**
+
+Este propósito se concreta en tres funciones, por orden de prioridad:
+
+| # | Función | Qué significa en la práctica |
+| --- | --- | --- |
+| **1** | **Ayuda del día a día** | Responder preguntas rápidas sin salir de lo que haces: "¿qué hace este error?", "¿cómo se llama este comando?" |
+| **2** | **Automatización** | Reaccionar a lo que ya pasa: avisar cuando un build falla, resumir la salida de un comando largo, encadenar tareas |
+| **3** | **Asistente de contexto** | Recordar proyectos, decisiones y tareas; saber en qué estás trabajando sin que se lo repitas |
+
+### 1.2 Qué es y qué no es AuraPet
+
+| Es | No es |
+| --- | --- |
+| Un asistente **reactivo**: observa tu sistema y actúa cuando ocurre algo | Un agente autónomo que hace cosas por su cuenta sin avisar |
+| Una capa de **contexto** que recuerda en qué trabajas | Un sustituto del terminal: la ejecuta **tú**, AuraPet observa |
+| Un **notificador** que resume y prioriza | Un sistema que ejecuta comandos por su cuenta sin permiso |
+
+> [!IMPORTANT]
+> **Límite de seguridad heredado del Sprint 2.** El servidor de eventos (RF-05)
+> **solo escucha, nunca ejecuta**. Este diseño se mantiene de forma deliberada:
+> si el asistente pudiera actuar por su cuenta, un evento malformado o una
+> instrucción inyectada a través del contexto de la IA se convertirían en
+> ejecución de comandos. **Cualquier función de acción requerirá confirmación
+> explícita del usuario y un catálogo de acciones permitidas.**
+
+### 1.3 Enfoque de fases
+
+Las tres funciones de 1.1 no se entregan de golpe. Cada una es un incremento
+que aporta valor por sí mismo:
+
+1. **Notificar** — ver y entender lo que pasa (base sobre la que construir)
+2. **Resumir** — convertir ruido en información accionable
+3. **Recordar** — mantener el contexto del proyecto
+4. **Automatizar** — encadenar reglas, siempre con confirmación
 
 ## 2. Stack tecnológico completo
 
@@ -177,20 +215,114 @@ git push --force-with-lease
 
 ## 9. Planificación ágil por sprints (equipo de 2+)
 
-### Sprint 1 — Fundaciones y arquitectura
+> [!NOTE]
+> **Revisión v1.4.0.** Los sprints 1 y 2 se ejecutaron según lo planificado.
+> A partir del Sprint 3, la planificación se amplía para cubrir el propósito
+> definido en la sección 1.1. La ampliación se justifica en 9.1.
+
+### Sprint 1 — Fundaciones y arquitectura ✅ Completado
 
 - **Dev A:** Configuración de Electron + Clean Architecture, `WindowManager` y IPC Handlers.
 - **Dev B:** Configuración de React + Vite + Tailwind CSS y componentes de `PetAvatar` SVG.
 
-### Sprint 2 — UI, físicas y sockets
+### Sprint 2 — UI, físicas y sockets ✅ Completado
 
-- **Dev A:** Implementación del servidor de WebSockets y eventos de CLI local.
+- **Dev A:** Implementación del servidor de WebSockets y eventos de CLI local (RF-05) y bandeja del sistema (RF-04).
 - **Dev B:** Animaciones con Framer Motion, hooks de seguimiento de cursor y Zustand stores.
 
-### Sprint 3 — Integración de IA y seguridad
+### 9.1 Por qué se amplía la planificación
 
-- **Dev A:** Integración de `safeStorage` (DPAPI) y adaptadores de OpenAI / Anthropic.
-- **Dev B:** Adaptador para Ollama/LM Studio local y panel de configuración UI.
+El Sprint 3 original ("Integración de IA y seguridad") cubre **infraestructura
+que el usuario no ve**: almacenamiento seguro y adaptadores de proveedores.
+Por sí solo no produce nada útil en pantalla.
+
+Además, al definir el propósito del producto (sección 1.1) aparecen necesidades
+que el PDR v1.2.0 no recogía:
+
+| Necesidad detectada | Requisito asociado | Sprint |
+| --- | --- | --- |
+| Una interfaz para preguntar y para configurar | **RF-03** (nunca implementado) | 4 |
+| Un canal para que herramientas reporten eventos | **RF-05** ampliado | 4 |
+| Una memoria del proyecto | **Nuevo: RF-06** | 5 |
+| Un motor de reglas | **Nuevo: RF-07** | 6 |
+
+> **Lo que NO cambia:** la arquitectura, la separación de procesos, el servidor
+> WebSocket ya construido y la mascota. La ampliación **aporta encima**, no
+> rehace lo anterior.
+
+### Sprint 3 — Infraestructura de IA y persistencia
+
+Objetivo: que la IA exista y que sus claves estén a salvo. Sin UI todavía.
+
+- **Dev A:** `safeStorage` (DPAPI) para credenciales; adaptadores de OpenAI y Anthropic; interfaz común `AIProvider`.
+- **Dev B:** Adaptador de Ollama y LM Studio; estado de carga y error de las peticiones en la UI.
+
+**Criterio de salida:** se puede enviar un prompt desde un test y obtener respuesta de un proveedor real, con la clave guardada cifrada.
+
+### Sprint 4 — Interfaz: chat y ajustes (fase "notificar")
+
+Objetivo: **la primera función visible de la sección 1.1.**
+
+- **Dev A:** Handler IPC de chat; streaming de respuestas token a token (evita el bloqueo de UI descrito en R-02).
+- **Dev B:** Panel de chat desplegable (RF-03), panel de ajustes (RF-03) con selección de proveedor.
+
+**Criterio de salida:** el usuario pregunta algo desde el panel y recibe respuesta.
+
+### Sprint 5 — Eventos y resumen (fase "resumir")
+
+Objetivo: convertir el ruido de la terminal en información accionable.
+
+- **Dev A:** Ampliar el protocolo de eventos del WebSocket (`build.completed`, `error`, `test.failed`); captura de la salida del comando; cola de notificaciones.
+- **Dev B:** Centro de notificaciones; resumen de la salida con la IA; agrupar y silenciar repetidos.
+
+**Criterio de salida:** un build fallido genera una notificación legible sin haber mirado la terminal.
+
+### Sprint 6 — Contexto y memoria (fase "recordar")
+
+Objetivo: que AuraPet sepa en qué estás trabajando.
+
+- **Dev A:** Almacenamiento local de contexto (notas, tareas, proyectos); recuperación por relevancia; comando para que la CLI reporte hitos (`aura-pet context add "..."`).
+- **Dev B:** Vista de contexto en el panel; indicador visual de "proyecto activo"; edición y borrado.
+
+**Criterio de salida:** AuraPet responde "¿en qué estoy trabajando?" sin que se lo pregunten de nuevo.
+
+### Sprint 7 — Automatización (fase "automatizar")
+
+> [!WARNING]
+> Es el sprint con más riesgo de seguridad. Toda acción requiere confirmación
+> explícita y solo puede invocar un catálogo cerrado de acciones permitidas
+> (sección 1.2).
+
+- **Dev A:** Motor de reglas (si ocurre X → proponer Y); gestor de tareas programadas; catálogo de acciones permitidas; registro de auditoría.
+- **Dev B:** Editor visual de reglas; activación y desactivación; historial de ejecuciones.
+
+**Criterio de salida:** una regla creada por el usuario se propone y ejecuta solo tras su confirmación.
+
+### 9.2 Resumen de la hoja de ruta
+
+| Sprint | FASE | Resultado visible |
+| --- | --- | --- |
+| 1 ✅ | Fundaciones | App arranca, ventana, mascota |
+| 2 ✅ | Eventos | Reacciona a la CLI, bandeja del sistema |
+| 3 | IA | *(ninguno todavía)* |
+| 4 | Notificar | **Panel de chat y ajustes** |
+| 5 | Resumir | **Notificaciones inteligentes** |
+| 6 | Recordar | **Memoria del proyecto** |
+| 7 | Automatizar | **Reglas con confirmación** |
+| 8 | Distribución | Instalador y documentación de uso |
+
+**El Sprint 3 es el único que no entrega valor visible por sí mismo.** Es
+inevitable: la IA necesita credenciales seguras antes de poder mostrarse.
+
+### 9.3 Requisitos funcionales resultantes
+
+Se mantiene la tabla de la sección 3 y se añaden:
+
+| ID | Requisito | Sprint |
+| --- | --- | --- |
+| RF-06 | Memoria de contexto del proyecto (notas, tareas, proyectos) | 6 |
+| RF-07 | Motor de reglas de automatización con confirmación | 7 |
+| RF-08 | Centro de notificaciones con resumen inteligente | 5 |
 
 ## 10. Cheat sheet de comandos de desarrollo y Git
 
@@ -299,3 +431,4 @@ git push -u origin feature/mi-tarea
 
 *Documento original: AuraPet PDR — Documento Técnico, páginas 1 a 5.*
 *Secciones 11 y 11.1-11.5 añadidas en la versión 1.3.0 (Octubre 2026).*
+*Secciones 1.1-1.3, 9.1-9.3 y Sprint 3-8 añadidos en la versión 1.4.0 (Octubre 2026).*
