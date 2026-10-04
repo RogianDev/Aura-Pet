@@ -4,7 +4,8 @@
 > físicas de resortes, automatización de terminal y motor multi-proveedor de IA.
 
 **Estado:** en desarrollo — Sprint 1 completado, Sprint 2 en curso.
-**Documentación:** [PDR-AuraPet.md](./PDR-AuraPet.md) (Documento de Requisitos de Producto v1.3.0)
+**Documentación:** [PDR-AuraPet.md](./PDR-AuraPet.md) (Documento de Requisitos de Producto v1.3.0) ·
+[docs/SPRINT-2-DEV-B.md](./docs/SPRINT-2-DEV-B.md) (animaciones, hooks y stores — Sprint 2, Dev B)
 
 ---
 
@@ -108,13 +109,18 @@ src/
 ├── preload/index.ts           # Firewall contextBridge → window.aurapetAPI
 │
 ├── renderer/                  # Proceso de renderizado (React)
-│   ├── components/PetAvatar/  # Mascota SVG vectorial
+│   ├── components/PetAvatar/  # Mascota SVG + variantes por ánimo
+│   ├── hooks/                 # Cursor, parpadeo y físicas       [Sprint 2]
+│   ├── config/                # Aspecto y físicas por ánimo      [Sprint 2]
+│   ├── motion/                # MotionValue compartidos         [Sprint 2]
+│   ├── utils/                 # Lógica pura testeable            [Sprint 2]
 │   ├── stores/                # Zustand: petMood, ui, settings
 │   └── styles/                # Tailwind CSS
 │
 └── shared/contracts.ts        # Contratos Main ↔ Renderer
 
 tests/                         # Vitest
+docs/                          # Documentación por sprint
 .github/workflows/ci.yml      # GitHub Actions
 ```
 
