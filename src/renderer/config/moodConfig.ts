@@ -49,7 +49,7 @@ export const MOOD_CONFIG: Record<PetMood, MoodConfig> = {
     mouth: 'M56 68 q4 3 8 0',
     eyesClosed: false,
     antenna: { color: '#ff5ca8', opacity: 0.45 },
-    physics: { stiffness: 260, damping: 18, pupilTravel: 1, bobDuration: 3 },
+    physics: { stiffness: 150, damping: 24, pupilTravel: 1, bobDuration: 3 },
   },
   happy: {
     label: 'Mascota AuraPet feliz',
@@ -58,7 +58,7 @@ export const MOOD_CONFIG: Record<PetMood, MoodConfig> = {
     mouth: 'M52 66 q8 10 16 0',
     eyesClosed: false,
     antenna: { color: '#ff5ca8', opacity: 1 },
-    physics: { stiffness: 320, damping: 16, pupilTravel: 1.15, bobDuration: 1.1 },
+    physics: { stiffness: 190, damping: 26, pupilTravel: 1.15, bobDuration: 1.1 },
   },
   curious: {
     label: 'Mascota AuraPet curiosa',
@@ -67,7 +67,7 @@ export const MOOD_CONFIG: Record<PetMood, MoodConfig> = {
     mouth: 'M58 64 a3 3 0 1 0 0 6 a3 3 0 1 0 0 -6',
     eyesClosed: false,
     antenna: { color: '#7ef9e1', opacity: 0.9 },
-    physics: { stiffness: 380, damping: 22, pupilTravel: 1.35, bobDuration: 1.8 },
+    physics: { stiffness: 220, damping: 28, pupilTravel: 1.35, bobDuration: 1.8 },
   },
   sleepy: {
     label: 'Mascota AuraPet dormida',
@@ -76,7 +76,7 @@ export const MOOD_CONFIG: Record<PetMood, MoodConfig> = {
     mouth: 'M54 68 q6 4 12 0',
     eyesClosed: true,
     antenna: { color: '#8fa3c8', opacity: 0.35 },
-    physics: { stiffness: 120, damping: 26, pupilTravel: 0.6, bobDuration: 4.2 },
+    physics: { stiffness: 90, damping: 28, pupilTravel: 0.6, bobDuration: 4.2 },
   },
   alert: {
     label: 'Mascota AuraPet avisando de una alerta',
@@ -85,6 +85,6 @@ export const MOOD_CONFIG: Record<PetMood, MoodConfig> = {
     mouth: 'M57 65 h6 q1.5 0 1.5 1.5 v2 q0 1.5 -1.5 1.5 h-6 q-1.5 0 -1.5 -1.5 v-2 q0 -1.5 1.5 -1.5 z',
     eyesClosed: false,
     antenna: { color: '#ff3b6b', opacity: 1 },
-    physics: { stiffness: 520, damping: 20, pupilTravel: 1.2, bobDuration: 0.55 },
+    physics: { stiffness: 300, damping: 32, pupilTravel: 1.2, bobDuration: 0.55 },
   },
 };
